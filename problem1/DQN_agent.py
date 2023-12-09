@@ -176,7 +176,7 @@ class DQNAgent(Agent):
         # Calculate the target Q-value using the Bellman equation
         with torch.no_grad():
             next_q_values = self.target_q_net(next_state_tensor)
-            max_next_q_value, _ = torch.max(next_q_values, 1).to(device)
+            max_next_q_value, _ = torch.max(next_q_values, 1)
             for i in range(len(done)):
                 if done[i]:
                     target = torch.tensor(reward[i]).to(device)
