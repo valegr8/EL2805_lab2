@@ -74,23 +74,18 @@ class MyNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super().__init__()
 
-        # Create input layer with ReLU activation
-        self.input_layer = nn.Linear(input_size, 8)
-        self.input_layer_activation = nn.ReLU()
+        hidden_size = 16
+        self.net = nn.Sequential(
+            nn.Linear(input_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, output_size)
+        ).to(device)
 
         # Create output layer
         self.output_layer = nn.Linear(8, output_size)
 
     def forward(self, x):
-        # Function used to compute the forward pass
-
-        # Compute first layer
-        l1 = self.input_layer(x)
-        l1 = self.input_layer_activation(l1)
-
-        # Compute output layer
-        out = self.output_layer(l1)
-        return out
+        return self.net(x)
 
 
 class Agent(object):
@@ -152,7 +147,7 @@ class DQNAgent(Agent):
     
     def forward(self, state: np.ndarray, epsilon = 0.1):
         # Convert the state to a PyTorch tensor
-        state_tensor = torch.tensor(state, dtype=torch.float32)
+        state_tensor = torch.tensor(state, dtype=torch.float32).to(device)
 
         # Forward pass through the neural network
         q_values = self.q_net(state_tensor)
@@ -169,8 +164,8 @@ class DQNAgent(Agent):
     
     def backward(self, state, action, reward, next_state, done):
         # Convert states to PyTorch tensors
-        state_tensor = torch.tensor(state, dtype=torch.float32)
-        next_state_tensor = torch.tensor(next_state, dtype=torch.float32)
+        state_tensor = torch.tensor(state, dtype=torch.float32).to(device)
+        next_state_tensor = torch.tensor(next_state, dtype=torch.float32).to(device)
 
         target_q_values = []
         curr_q_vals = []
@@ -181,10 +176,10 @@ class DQNAgent(Agent):
         # Calculate the target Q-value using the Bellman equation
         with torch.no_grad():
             next_q_values = self.target_q_net(next_state_tensor)
-            max_next_q_value, _ = torch.max(next_q_values, 1)
+            max_next_q_value, _ = torch.max(next_q_values, 1).to(device)
             for i in range(len(done)):
                 if done[i]:
-                    target = torch.tensor(reward[i])
+                    target = torch.tensor(reward[i]).to(device)
                 else:
                     target = reward[i] + self.gamma * max_next_q_value[i]
                 
@@ -196,7 +191,7 @@ class DQNAgent(Agent):
             action_tensor = torch.tensor(action, dtype=torch.long)
             curr_q_vals = current_q_values[torch.arange(current_q_values.size(0)), action_tensor]
             curr_q_vals.requires_grad=True
-            target_q_values = torch.stack(target_q_values)
+            target_q_values = torch.stack(target_q_values).to(device)
 
         # Calculate the loss (mean squared error between current Q-value and target Q-value)
         loss = F.mse_loss(curr_q_vals, torch.tensor(target_q_values, dtype=torch.float32))
