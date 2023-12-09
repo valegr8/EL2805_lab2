@@ -9,8 +9,7 @@
 # permissions and limitations under the License.
 #
 # Course: EL2805 - Reinforcement Learning - Lab 2 Problem 1
-# Code author: [Alessio Russo - alessior@kth.se]
-# Last update: 6th October 2020, by alessior@kth.se
+# Code authors: []
 #
 
 # Load packages
@@ -19,7 +18,15 @@ import gym
 import torch
 import matplotlib.pyplot as plt
 from tqdm import trange
-from DQN_agent import RandomAgent
+from DQN_agent import RandomAgent, DQNAgent, ExperienceReplayBuffer
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+import pdb
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def running_average(x, N):
     ''' Function used to compute the running average
@@ -37,19 +44,44 @@ env = gym.make('LunarLander-v2')
 env.reset()
 
 # Parameters
-N_episodes = 100                             # Number of episodes
+N_episodes = 100                             # Number of episodes [100,1000]
 discount_factor = 0.95                       # Value of the discount factor
 n_ep_running_average = 50                    # Running average of 50 episodes
 n_actions = env.action_space.n               # Number of available actions
 dim_state = len(env.observation_space.high)  # State dimensionality
+
+batch_size = 32                               # number of elements to sample from the exp buffer [4,128]
+buffer_length = 1000
+max_steps = buffer_length/batch_size
+
 
 # We will use these variables to compute the average episodic reward and
 # the average number of steps per episode
 episode_reward_list = []       # this list contains the total reward per episode
 episode_number_of_steps = []   # this list contains the number of steps per episode
 
-# Random agent initialization
-agent = RandomAgent(n_actions)
+agent = DQNAgent(n_actions, dim_state, max_steps, discount_factor)
+
+random_agent = RandomAgent(n_actions)
+### Create Experience replay buffer ###
+buffer = ExperienceReplayBuffer(buffer_length)
+## fill the buffer with random experiences
+for i in range(5):
+    # Reset enviroment data and initialize variables
+    done = False
+    state = env.reset()
+    state = state[0]
+    while not done and len(buffer) < buffer_length:
+        # Take a random action
+        action = random_agent.forward(state)
+
+        next_state, reward, done, _, _ = env.step(action)
+        #append to the buffer B
+        exp = (state, action, reward, next_state, done)
+        buffer.append(exp)
+        state = next_state
+
+print(len(buffer))
 
 ### Training process
 
@@ -61,16 +93,28 @@ for i in EPISODES:
     # Reset enviroment data and initialize variables
     done = False
     state = env.reset()
+    state = state[0]
     total_episode_reward = 0.
     t = 0
     while not done:
-        # Take a random action
+        # pdb.set_trace()
+        # Take a random action -> epsilon greedy 
         action = agent.forward(state)
 
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,
         # False otherwise
-        next_state, reward, done, _ = env.step(action)
+        next_state, reward, done, _, _ = env.step(action)
+        #append to the buffer B
+        exp = (state, action, reward, next_state, done)
+        buffer.append(exp)
+
+        # sample a random batch
+        # Perform training only if we have more than batch_size elements in the buffer
+        if len(buffer) >= batch_size:
+            states, actions, rewards, next_states, dones = buffer.sample_batch(batch_size)
+            #print(states)
+            agent.backward(states, actions, rewards, next_states, dones)
 
         # Update episode reward
         total_episode_reward += reward
