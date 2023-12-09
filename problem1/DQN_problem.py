@@ -44,7 +44,7 @@ env = gym.make('LunarLander-v2')
 env.reset()
 
 # Parameters
-N_episodes = 100                             # Number of episodes [100,1000]
+N_episodes = 500                             # Number of episodes [100,1000]
 discount_factor = 0.95                       # Value of the discount factor
 n_ep_running_average = 50                    # Running average of 50 episodes
 n_actions = env.action_space.n               # Number of available actions
@@ -53,14 +53,18 @@ dim_state = len(env.observation_space.high)  # State dimensionality
 batch_size = 32                               # number of elements to sample from the exp buffer [4,128]
 buffer_length = 1000
 max_steps = buffer_length/batch_size
+epsilon_max = 0.99
+epsilon_min = 0.05
+n_episodes_decay = 100
 
+learning_rate = 0.0001
 
 # We will use these variables to compute the average episodic reward and
 # the average number of steps per episode
 episode_reward_list = []       # this list contains the total reward per episode
 episode_number_of_steps = []   # this list contains the number of steps per episode
 
-agent = DQNAgent(n_actions, dim_state, max_steps, discount_factor)
+agent = DQNAgent(n_actions, dim_state, max_steps, discount_factor, learning_rate)
 
 random_agent = RandomAgent(n_actions)
 ### Create Experience replay buffer ###
@@ -81,13 +85,13 @@ for i in range(5):
         buffer.append(exp)
         state = next_state
 
-print(len(buffer))
-
 ### Training process
 
 # trange is an alternative to range in python, from the tqdm library
 # It shows a nice progression bar that you can update with useful information
 EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
+
+epsilon = epsilon_max
 
 for i in EPISODES:
     # Reset enviroment data and initialize variables
@@ -96,10 +100,14 @@ for i in EPISODES:
     state = state[0]
     total_episode_reward = 0.
     t = 0
+
+    # epsilon exponential decay over number of episodes
+    epsilon = max(epsilon_min, epsilon_max*(epsilon_min/epsilon_max)**((i-1)/(n_episodes_decay-1)))
+    print(epsilon)
     while not done:
         # pdb.set_trace()
         # Take a random action -> epsilon greedy 
-        action = agent.forward(state)
+        action = agent.forward(state, epsilon)
 
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,

@@ -127,7 +127,7 @@ class RandomAgent(Agent):
         return self.last_action
 
 class DQNAgent(Agent):
-    def __init__(self, n_actions: int, n_states, max_steps, gamma):
+    def __init__(self, n_actions: int, n_states, max_steps, gamma, learning_rate):
         super(DQNAgent, self).__init__(n_actions)
 
         self.n_states = n_states
@@ -136,7 +136,7 @@ class DQNAgent(Agent):
         self.q_net = MyNetwork(n_states, n_actions)
         self.target_q_net = MyNetwork(n_states, n_actions)
 
-        self.optimizer = optim.Adam(self.q_net.parameters(), lr=0.0001)
+        self.optimizer = optim.Adam(self.q_net.parameters(), lr=learning_rate)
 
         # Copy the weights from q_net to target_q_net
         self.target_q_net.load_state_dict(self.q_net.state_dict())
@@ -145,7 +145,7 @@ class DQNAgent(Agent):
         self.max_steps = max_steps
         self.gamma = gamma
     
-    def forward(self, state: np.ndarray, epsilon = 0.1):
+    def forward(self, state: np.ndarray, epsilon = 0.5):
         # Convert the state to a PyTorch tensor
         state_tensor = torch.tensor(state, dtype=torch.float32).to(device)
 
