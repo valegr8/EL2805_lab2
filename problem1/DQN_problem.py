@@ -103,7 +103,6 @@ for i in EPISODES:
 
     # epsilon exponential decay over number of episodes
     epsilon = max(epsilon_min, epsilon_max*(epsilon_min/epsilon_max)**((i-1)/(n_episodes_decay-1)))
-    print(epsilon)
     while not done:
         # pdb.set_trace()
         # Take a random action -> epsilon greedy 
@@ -120,9 +119,8 @@ for i in EPISODES:
         # sample a random batch
         # Perform training only if we have more than batch_size elements in the buffer
         if len(buffer) >= batch_size:
-            states, actions, rewards, next_states, dones = buffer.sample_batch(batch_size)
-            #print(states)
-            agent.backward(states, actions, rewards, next_states, dones)
+            exp = buffer.sample_batch(batch_size)
+            agent.backward(exp)
 
         # Update episode reward
         total_episode_reward += reward

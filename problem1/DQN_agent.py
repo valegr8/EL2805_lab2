@@ -162,16 +162,18 @@ class DQNAgent(Agent):
 
         return self.last_action
     
-    def backward(self, state, action, reward, next_state, done):
+    def backward(self, exp):
+        state, action, reward, next_state, done = exp
         # Convert states to PyTorch tensors
         state_tensor = torch.tensor(state, dtype=torch.float32).to(device)
         next_state_tensor = torch.tensor(next_state, dtype=torch.float32).to(device)
+        action_tensor = torch.tensor(action, dtype=torch.long).to(device)
 
         target_q_values = []
         curr_q_vals = []
 
         # Forward pass to get Q-values for the current state
-        current_q_values = self.q_net(state_tensor)
+        curr_q_vals = self.q_net(state_tensor)[torch.arange(state_tensor.size(0)), action_tensor]
 
         # Calculate the target Q-value using the Bellman equation
         with torch.no_grad():
@@ -185,16 +187,14 @@ class DQNAgent(Agent):
                 
                 target_q_values.append(target)
 
-                # Get the Q-value of the chosen action
-                #curr_q_vals.append(current_q_values[action[i]])
 
-            action_tensor = torch.tensor(action, dtype=torch.long)
-            curr_q_vals = current_q_values[torch.arange(current_q_values.size(0)), action_tensor]
-            curr_q_vals.requires_grad=True
+            #curr_q_vals = current_q_values[torch.arange(current_q_values.size(0)), action_tensor]
+            # curr_q_vals.requires_grad=True
+            # Use torch.gather to select the Q-values corresponding to the taken actions
             target_q_values = torch.stack(target_q_values).to(device)
 
         # Calculate the loss (mean squared error between current Q-value and target Q-value)
-        loss = F.mse_loss(curr_q_vals, torch.tensor(target_q_values, dtype=torch.float32))
+        loss = F.mse_loss(curr_q_vals, torch.tensor(target_q_values, dtype=torch.float32)).to(device)
 
         # Perform a backward pass and update the weights
         self.q_net.zero_grad()
@@ -206,6 +206,5 @@ class DQNAgent(Agent):
 
         self.step_count += 1
 
-        if (self.step_count >= self.max_steps):
-            self.step_count = 0
+        if (self.step_count % self.max_steps == 0):
             self.target_q_net.load_state_dict(self.q_net.state_dict())
