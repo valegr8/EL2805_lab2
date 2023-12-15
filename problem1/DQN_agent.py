@@ -9,7 +9,7 @@
 # permissions and limitations under the License.
 #
 # Course: EL2805 - Reinforcement Learning - Lab 2 Problem 1
-# Code authors: []
+# Code authors: [Valeria grotto, Dalim Wahby]
 #
 
 # Load packages
@@ -62,19 +62,22 @@ class ExperienceReplayBuffer(object):
         # Using the indices that we just sampled build a list of chosen experiences
         batch = [self.buffer[i] for i in indices]
 
+        # combined experience replay --> the last element is the newest
+        batch[n-1] = self.buffer[len(self.buffer)-1]
+
         # batch is a list of size n, where each element is an Experience tuple
         # of 5 elements. To convert a list of tuples into
         # a tuple of list we do zip(*batch). In this case this will return a
         # tuple of 5 elements where each element is a list of n elements.
         return zip(*batch)
 
-### Neural Network ###
-class MyNetwork(nn.Module):
+### Deep Q Network ###
+class DQNetwork(nn.Module):
     """ Create a feedforward neural network """
     def __init__(self, input_size, output_size):
         super().__init__()
 
-        hidden_size = 16
+        hidden_size = 12
         self.net = nn.Sequential(
             nn.Linear(input_size, hidden_size),
             nn.ReLU(),
@@ -86,6 +89,42 @@ class MyNetwork(nn.Module):
 
     def forward(self, x):
         return self.net(x)
+
+### Dueling Deep Q Network ###
+class DuelingDQNetwork(nn.Module):
+    """ Create a feedforward neural network """
+    def __init__(self, input_size, output_size):
+        super().__init__()
+
+        hidden_sizes = [32, 16]
+        self.net = nn.Sequential(
+            nn.Linear(input_size, hidden_sizes[0]),
+            nn.ReLU(),
+            nn.Linear(hidden_sizes[0], output_size)
+        ).to(device)
+
+        # V(s) is a scalar
+        self.value_function_layer = nn.Sequential(
+            nn.Linear(output_size, hidden_sizes[1]),
+            nn.ReLU(),
+            nn.Linear(hidden_sizes[1], 1)
+        ).to(device)
+        
+        #  and A(s,a) layers
+        self.advantage_layer = nn.Sequential(
+            nn.Linear(output_size, hidden_sizes[1]),
+            nn.ReLU(),
+            nn.Linear(hidden_sizes[1], output_size)
+        ).to(device)
+
+    def forward(self, x):
+        x = self.net(x)
+        value = self.value_function_layer(x)
+        advantage = self.advantage_layer(x)
+        advAvg = advantage.mean()
+        q = value + (advantage - advAvg)
+        return q
+
 
 
 class Agent(object):
@@ -127,14 +166,18 @@ class RandomAgent(Agent):
         return self.last_action
 
 class DQNAgent(Agent):
-    def __init__(self, n_actions: int, n_states, max_steps, gamma, learning_rate):
+    def __init__(self, n_actions, n_states, max_steps, gamma, learning_rate, dueling = False):
         super(DQNAgent, self).__init__(n_actions)
 
         self.n_states = n_states
 
         # Initialize your neural network
-        self.q_net = MyNetwork(n_states, n_actions)
-        self.target_q_net = MyNetwork(n_states, n_actions)
+        if not dueling:
+          self.q_net = DQNetwork(n_states, n_actions)
+          self.target_q_net = DQNetwork(n_states, n_actions)
+        else:
+          self.q_net = DuelingDQNetwork(n_states, n_actions)
+          self.target_q_net = DuelingDQNetwork(n_states, n_actions)
 
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=learning_rate)
 
@@ -147,7 +190,10 @@ class DQNAgent(Agent):
     
     def forward(self, state: np.ndarray, epsilon = 0.5):
         # Convert the state to a PyTorch tensor
-        state_tensor = torch.tensor(state, dtype=torch.float32).to(device)
+        if type(state) is tuple:
+          state_tensor = torch.tensor(state).to(device)
+        else:
+          state_tensor = torch.from_numpy(state).to(device)
 
         # Forward pass through the neural network
         q_values = self.q_net(state_tensor)
@@ -165,8 +211,11 @@ class DQNAgent(Agent):
     def backward(self, exp):
         state, action, reward, next_state, done = exp
         # Convert states to PyTorch tensors
-        state_tensor = torch.tensor(state, dtype=torch.float32).to(device)
-        next_state_tensor = torch.tensor(next_state, dtype=torch.float32).to(device)
+        if type(state) is tuple:
+          state_tensor = torch.tensor(state).to(device)
+        else:
+          state_tensor = torch.from_numpy(state).to(device)
+        next_state_tensor = torch.tensor(next_state).to(device)
         action_tensor = torch.tensor(action, dtype=torch.long).to(device)
 
         target_q_values = []
@@ -194,7 +243,7 @@ class DQNAgent(Agent):
             target_q_values = torch.stack(target_q_values).to(device)
 
         # Calculate the loss (mean squared error between current Q-value and target Q-value)
-        loss = F.mse_loss(curr_q_vals, torch.tensor(target_q_values, dtype=torch.float32)).to(device)
+        loss = F.mse_loss(curr_q_vals, target_q_values.clone().detach().requires_grad_(False)).to(device)
 
         # Perform a backward pass and update the weights
         self.q_net.zero_grad()
@@ -208,3 +257,9 @@ class DQNAgent(Agent):
 
         if (self.step_count % self.max_steps == 0):
             self.target_q_net.load_state_dict(self.q_net.state_dict())
+    
+    
+    def save_net(self, net_name = 'neural-network-1'):
+      '''Function to save the nn at the end of the training'''
+      path = net_name + '.pth'
+      torch.save(self.q_net, path)
