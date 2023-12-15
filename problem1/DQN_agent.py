@@ -190,7 +190,7 @@ class DQNAgent(Agent):
     
     def forward(self, state: np.ndarray, epsilon = 0.5):
         # Convert the state to a PyTorch tensor
-        if type(state) is tuple:
+        if isinstance(state, np.ndarray):
           state_tensor = torch.tensor(state).to(device)
         else:
           state_tensor = torch.from_numpy(state).to(device)
@@ -211,7 +211,7 @@ class DQNAgent(Agent):
     def backward(self, exp):
         state, action, reward, next_state, done = exp
         # Convert states to PyTorch tensors
-        if type(state) is tuple:
+        if isinstance(state, np.ndarray):
           state_tensor = torch.tensor(state).to(device)
         else:
           state_tensor = torch.from_numpy(state).to(device)
