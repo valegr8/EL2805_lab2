@@ -9,7 +9,7 @@
 # permissions and limitations under the License.
 #
 # Course: EL2805 - Reinforcement Learning - Lab 2 Problem 1
-# Code authors: []
+# Code authors: [Valeria Grotto, Dalim Wahby]
 #
 
 # Load packages
@@ -30,7 +30,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 env = gym.make('LunarLander-v2')
 
 # Parameters
-N_episodes = 1000                             # Number of episodes [100,1000]
+N_episodes = 600                             # Number of episodes [100,1000]
 discount_factor = 0.99                       # Value of the discount factor
 n_ep_running_average = 50                    # Running average of 50 episodes
 
@@ -101,6 +101,8 @@ def train_enviroment(net_name, env, N_episodes, n_ep_running_average, buffer_len
 
   epsilon = epsilon_max
 
+  final_ep = 0
+
   for i in EPISODES:
       # Reset enviroment data and initialize variables
       done = False
@@ -113,7 +115,7 @@ def train_enviroment(net_name, env, N_episodes, n_ep_running_average, buffer_len
       epsilon = max(epsilon_min, epsilon_max*(epsilon_min/epsilon_max)**((i-1)/(n_episodes_decay-1)))
       while not done and t < maximum_steps_episode:
           # pdb.set_trace()
-          # Take a random action -> epsilon greedy 
+          # Take a random action -> epsilon greedy
           action = agent.forward(state, epsilon)
 
           # Get next state and reward.  The done variable
@@ -153,11 +155,12 @@ def train_enviroment(net_name, env, N_episodes, n_ep_running_average, buffer_len
           i, total_episode_reward, t,
           running_average(episode_reward_list, n_ep_running_average)[-1],
           running_average(episode_number_of_steps, n_ep_running_average)[-1]))
-
+      
       # early stopping
       if  running_average(episode_reward_list, n_ep_running_average)[-1] > early_stopping_threshold:
         print('The average over the last {} episodes was: {}'.format(n_ep_running_average,running_average(episode_reward_list, n_ep_running_average)[-1]))
         agent.save_net(net_name)
+        final_ep = i
         break
 
 
@@ -181,33 +184,13 @@ def train_enviroment(net_name, env, N_episodes, n_ep_running_average, buffer_len
   ax[1].set_title('Total number of steps vs Episodes')
   ax[1].legend()
   ax[1].grid(alpha=0.3)
-  plt.show()
 
+  
   path = net_name + '.png'
   plt.savefig(path)
 
-  return n_ep_running_average
+  plt.show()
+
+  return n_ep_running_average, final_ep
 
 train_enviroment('neural-network-1', env, N_episodes, n_ep_running_average, buffer_length, batch_size, discount_factor, learning_rate, dueling = True)
-
-# try different discount factors
-df = 1
-train_enviroment('nn-df1', env, 200, n_ep_running_average, buffer_length, batch_size, df, learning_rate, dueling = True)
-
-df = 0.5
-train_enviroment('nn-df1',env, 200, n_ep_running_average, buffer_length, batch_size, df, learning_rate, dueling = True)
-
-# try different n of episodes and memory sizes
-avg_diff_n_episods = ()
-avg_diff_m_size = ()
-
-n_ep_list = [100, 200, 300, 400, 500, 600, 700]
-m_sizes = [5000, 10000, 15000, 20000, 25000, 30000]
-
-for n_ep in n_ep_list:
-  name = 'n_ep' + n_ep
-  avg_diff_n_episods.append(train_enviroment(name,env, n_ep, n_ep_running_average, buffer_length, batch_size, discount_factor, learning_rate, dueling = True))
-
-for m_size in m_sizes:
-  name = 'm_size' + n_ep
-  avg_diff_m_size.append(train_enviroment(name,env, N_episodes, n_ep_running_average, m_size, batch_size, discount_factor, learning_rate, dueling = True))

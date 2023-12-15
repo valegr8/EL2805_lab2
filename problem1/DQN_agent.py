@@ -109,7 +109,7 @@ class DuelingDQNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_sizes[1], 1)
         ).to(device)
-        
+
         #  and A(s,a) layers
         self.advantage_layer = nn.Sequential(
             nn.Linear(output_size, hidden_sizes[1]),
@@ -187,10 +187,10 @@ class DQNAgent(Agent):
         self.step_count = 0
         self.max_steps = max_steps
         self.gamma = gamma
-    
+
     def forward(self, state: np.ndarray, epsilon = 0.5):
         # Convert the state to a PyTorch tensor
-        if isinstance(state, np.ndarray):
+        if not isinstance(state, np.ndarray):
           state_tensor = torch.tensor(state).to(device)
         else:
           state_tensor = torch.from_numpy(state).to(device)
@@ -207,11 +207,11 @@ class DQNAgent(Agent):
             self.last_action = torch.argmax(q_values).item()
 
         return self.last_action
-    
+
     def backward(self, exp):
         state, action, reward, next_state, done = exp
         # Convert states to PyTorch tensors
-        if isinstance(state, np.ndarray):
+        if not isinstance(state, np.ndarray):
           state_tensor = torch.tensor(state).to(device)
         else:
           state_tensor = torch.from_numpy(state).to(device)
@@ -233,7 +233,7 @@ class DQNAgent(Agent):
                     target = torch.tensor(reward[i]).to(device)
                 else:
                     target = reward[i] + self.gamma * max_next_q_value[i]
-                
+
                 target_q_values.append(target)
 
 
@@ -257,8 +257,8 @@ class DQNAgent(Agent):
 
         if (self.step_count % self.max_steps == 0):
             self.target_q_net.load_state_dict(self.q_net.state_dict())
-    
-    
+
+
     def save_net(self, net_name = 'neural-network-1'):
       '''Function to save the nn at the end of the training'''
       path = net_name + '.pth'
