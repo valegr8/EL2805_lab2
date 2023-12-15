@@ -19,6 +19,8 @@ import gym
 import torch
 from tqdm import trange
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 def running_average(x, N):
     ''' Function used to compute the running average
         of the last N elements of a vector x
