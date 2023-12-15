@@ -24,8 +24,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-import pdb
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Initialize enviroment
@@ -74,7 +72,7 @@ def train_enviroment(net_name, env, N_episodes, n_ep_running_average, buffer_len
   episode_reward_list = []       # this list contains the total reward per episode
   episode_number_of_steps = []   # this list contains the number of steps per episode
 
-  agent = DQNAgent(n_actions, dim_state, max_steps, discount_factor, learning_rate, dueling = True)
+  agent = DQNAgent(n_actions, dim_state, max_steps, discount_factor, learning_rate, dueling)
 
   random_agent = RandomAgent(n_actions)
   ### Create Experience replay buffer ###
