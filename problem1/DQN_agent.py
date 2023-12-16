@@ -9,7 +9,7 @@
 # permissions and limitations under the License.
 #
 # Course: EL2805 - Reinforcement Learning - Lab 2 Problem 1
-# Code authors: [Valeria grotto, Dalim Wahby]
+# Code authors: [Valeria grotto 200101266021, Dalim Wahby 19970606-T919]
 #
 
 # Load packages
@@ -166,18 +166,18 @@ class RandomAgent(Agent):
         return self.last_action
 
 class DQNAgent(Agent):
-    def __init__(self, n_actions, n_states, max_steps, gamma, learning_rate, dueling = False):
+    def __init__(self, n_actions, n_states, gamma, learning_rate, dueling = False):
         super(DQNAgent, self).__init__(n_actions)
 
         self.n_states = n_states
 
         # Initialize your neural network
         if not dueling:
-          self.q_net = DQNetwork(n_states, n_actions)
-          self.target_q_net = DQNetwork(n_states, n_actions)
+            self.q_net = DQNetwork(n_states, n_actions)
+            self.target_q_net = DQNetwork(n_states, n_actions)
         else:
-          self.q_net = DuelingDQNetwork(n_states, n_actions)
-          self.target_q_net = DuelingDQNetwork(n_states, n_actions)
+            self.q_net = DuelingDQNetwork(n_states, n_actions)
+            self.target_q_net = DuelingDQNetwork(n_states, n_actions)
 
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=learning_rate)
 
@@ -185,7 +185,6 @@ class DQNAgent(Agent):
         self.target_q_net.load_state_dict(self.q_net.state_dict())
 
         self.step_count = 0
-        self.max_steps = max_steps
         self.gamma = gamma
 
     def forward(self, state: np.ndarray, epsilon = 0.5):
@@ -208,7 +207,7 @@ class DQNAgent(Agent):
 
         return self.last_action
 
-    def backward(self, exp):
+    def backward(self, exp, max_steps):
         state, action, reward, next_state, done = exp
         # Convert states to PyTorch tensors
         if not isinstance(state, np.ndarray):
@@ -255,7 +254,7 @@ class DQNAgent(Agent):
 
         self.step_count += 1
 
-        if (self.step_count % self.max_steps == 0):
+        if (self.step_count % max_steps == 0):
             self.target_q_net.load_state_dict(self.q_net.state_dict())
 
 

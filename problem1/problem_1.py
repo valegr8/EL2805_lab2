@@ -9,7 +9,7 @@
 # permissions and limitations under the License.
 #
 # Course: EL2805 - Reinforcement Learning - Lab 2 Problem 1
-# Code authors: [Valeria Grotto, Dalim Wahby]
+# Code authors: [Valeria Grotto 200101266021, Dalim Wahby 19970606-T919]
 #
 
 # Load packages
@@ -18,7 +18,7 @@ import gym
 import torch
 import matplotlib.pyplot as plt
 from tqdm import trange
-from DQN_agent import RandomAgent, DQNAgent, ExperienceReplayBuffer
+from DQN_agent import RandomAgent, DQNAgent, ExperienceReplayBuffer, DuelingDQNetwork
 
 import torch
 import torch.nn as nn
@@ -30,12 +30,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 env = gym.make('LunarLander-v2')
 
 # Parameters
-N_episodes = 600                             # Number of episodes [100,1000]
+N_episodes = 550                             # Number of episodes [100,1000]
 discount_factor = 0.99                       # Value of the discount factor
 n_ep_running_average = 50                    # Running average of 50 episodes
 
 batch_size = 64                              # N, between 4-128,number of elements to sample from the exp buffer [4,128]
-buffer_length = 20000                        # L, between 5000-30000
+buffer_length = 30000                        # L, between 5000-30000
 
 learning_rate = 0.001                        # usually 10^-3, 10^-4
 
@@ -65,14 +65,14 @@ def train_enviroment(net_name, env, N_episodes, n_ep_running_average, buffer_len
   n_episodes_decay = 0.95*N_episodes           # Z, this is usually 90-95% of the number of episodes
   epsilon_max = 0.99
   epsilon_min = 0.05
-  early_stopping_threshold = 150               # value for which we stop the training and save the value of the net
+  early_stopping_threshold = 220               # value for which we stop the training and save the value of the net
 
   # We will use these variables to compute the average episodic reward and
   # the average number of steps per episode
   episode_reward_list = []       # this list contains the total reward per episode
   episode_number_of_steps = []   # this list contains the number of steps per episode
 
-  agent = DQNAgent(n_actions, dim_state, max_steps, discount_factor, learning_rate, dueling)
+  agent = DQNAgent(n_actions, dim_state, discount_factor, learning_rate, dueling)
 
   random_agent = RandomAgent(n_actions)
   ### Create Experience replay buffer ###
@@ -138,7 +138,7 @@ def train_enviroment(net_name, env, N_episodes, n_ep_running_average, buffer_len
           if len(buffer) >= batch_size:
               # combined experience replay
               exp = buffer.sample_batch(batch_size)
-              agent.backward(exp)
+              agent.backward(exp, max_steps)
 
       # Append episode reward and total number of steps
       episode_reward_list.append(total_episode_reward)
@@ -193,4 +193,96 @@ def train_enviroment(net_name, env, N_episodes, n_ep_running_average, buffer_len
 
   return n_ep_running_average, final_ep
 
-train_enviroment('neural-network-1', env, N_episodes, n_ep_running_average, buffer_length, batch_size, discount_factor, learning_rate, dueling = True)
+#train_enviroment('neural-network-1', env, N_episodes, n_ep_running_average, buffer_length, batch_size, discount_factor, learning_rate, dueling = True)
+
+def run_model(env,N_episodes, model):
+    env.reset()
+
+    # Parameters
+    n_ep_running_average = 50                    # Running average of 50 episodes
+
+    # We will use these variables to compute the average episodic reward and
+    # the average number of steps per episode
+    episode_reward_list = []       # this list contains the total reward per episode
+    episode_number_of_steps = []   # this list contains the number of steps per episode
+
+    ### Training process
+
+    # trange is an alternative to range in python, from the tqdm library
+    # It shows a nice progression bar that you can update with useful information
+    EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
+
+    for i in EPISODES:
+        # Reset enviroment data and initialize variables
+        done = False
+        state = env.reset()
+        state = state[0]
+        total_episode_reward = 0.
+        t = 0
+        while not done and t < 1000:
+            q_values = model(torch.tensor([state]).to(device))
+            _, action = torch.max(q_values, axis=1)
+
+            # Get next state and reward.  The done variable
+            # will be True if you reached the goal position,
+            # False otherwise
+            next_state, reward, done, _, _ = env.step(action.item())
+
+            # Update episode reward
+            total_episode_reward += reward
+
+            # Update state for next iteration
+            state = next_state
+            t+= 1
+
+        # Append episode reward and total number of steps
+        episode_reward_list.append(total_episode_reward)
+        episode_number_of_steps.append(t)
+
+        # Close environment
+        env.close()
+
+        # Updates the tqdm update bar with fresh information
+        # (episode number, total reward of the last episode, total number of Steps
+        # of the last episode, average reward, average number of steps)
+        EPISODES.set_description(
+            "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{}".format(
+            i, total_episode_reward, t,
+            running_average(episode_reward_list, n_ep_running_average)[-1],
+            running_average(episode_number_of_steps, n_ep_running_average)[-1]))
+
+
+    # Plot Rewards and steps
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
+    ax[0].plot([i for i in range(1, N_episodes+1)], episode_reward_list, label='Episode reward')
+    ax[0].plot([i for i in range(1, N_episodes+1)], running_average(
+        episode_reward_list, n_ep_running_average), label='Avg. episode reward')
+    ax[0].set_xlabel('Episodes')
+    ax[0].set_ylabel('Total reward')
+    ax[0].set_title('Total Reward vs Episodes')
+    ax[0].legend()
+    ax[0].grid(alpha=0.3)
+
+    ax[1].plot([i for i in range(1, N_episodes+1)], episode_number_of_steps, label='Steps per episode')
+    ax[1].plot([i for i in range(1, N_episodes+1)], running_average(
+        episode_number_of_steps, n_ep_running_average), label='Avg. number of steps per episode')
+    ax[1].set_xlabel('Episodes')
+    ax[1].set_ylabel('Total number of steps')
+    ax[1].set_title('Total number of steps vs Episodes')
+    ax[1].legend()
+    ax[1].grid(alpha=0.3)
+    plt.show()
+
+
+## TRAIN
+#train_enviroment('test', env, N_episodes, n_ep_running_average, buffer_length, batch_size, discount_factor, learning_rate, dueling = True)
+
+## TEST THE MODEL
+N_episodes = 50
+# Load model
+path = "C:\\Users\\valeg\\Desktop\\ReinforcementLearning\\EL2805_lab2\\problem1\\neural-network-1.pth"
+model = torch.load(path, map_location=torch.device('cpu'))
+print('Network model: {}'.format(model))
+
+run_model(env, N_episodes, model)
+

@@ -10,7 +10,8 @@
 #
 # Course: EL2805 - Reinforcement Learning - Lab 2 Problem 1
 # Code author: [Alessio Russo - alessior@kth.se]
-# Last update: 6th October 2020, by alessior@kth.se
+# Modified by: [Valeria grotto 200101266021, Dalim Wahby 19970606-T919]
+# Last update: 16/12/23, by vgrotto@kth.se
 #
 
 # Load packages
@@ -18,6 +19,7 @@ import numpy as np
 import gym
 import torch
 from tqdm import trange
+from DQN_agent import DuelingDQNetwork
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -33,12 +35,9 @@ def running_average(x, N):
     return y
 
 # Load model
-try:
-    model = torch.load('neural-network-1.pth')
-    print('Network model: {}'.format(model))
-except:
-    print('File neural-network-1.pth not found!')
-    exit(-1)
+path = "C:\\Users\\valeg\\Desktop\\ReinforcementLearning\\EL2805_lab2\\problem1\\neural-network-1.pth"
+model = torch.load(path, map_location=torch.device('cpu'))
+print('Network model: {}'.format(model))
 
 # Import and initialize Mountain Car Environment
 env = gym.make('LunarLander-v2')

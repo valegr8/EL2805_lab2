@@ -10,7 +10,8 @@
 #
 # Course: EL2805 - Reinforcement Learning - Lab 2 Problem 1
 # Code author: [Alessio Russo - alessior@kth.se]
-# Last update: 6th October 2020, by alessior@kth.se
+# Modified by: [Valeria Grotto 200101266021, Dalim Wahby 19970606-T919]
+# Last update: 16/12/23, by vgrotto@kth.se
 #
 
 # Load packages
@@ -37,7 +38,7 @@ env = gym.make('LunarLander-v2')
 env.reset()
 
 # Parameters
-N_episodes = 100                             # Number of episodes
+N_episodes = 50                             # Number of episodes
 discount_factor = 0.95                       # Value of the discount factor
 n_ep_running_average = 50                    # Running average of 50 episodes
 n_actions = env.action_space.n               # Number of available actions
@@ -70,7 +71,7 @@ for i in EPISODES:
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,
         # False otherwise
-        next_state, reward, done, _ = env.step(action)
+        next_state, reward, done, _, _ = env.step(action)
 
         # Update episode reward
         total_episode_reward += reward
